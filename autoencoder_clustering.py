@@ -8,7 +8,7 @@ config = {
     'inputs': 28*28,
     'layer_sizes': [600, 500, 400, 300, 200, 150, 100, 75, 50, 30, 20, 10, 5],
     'batch_size': 64,
-    'epochs': 20, # TODO 200,
+    'epochs': 200,
     'label_num': 10, # How many labels there are in the data
     'samples': 20000 # How many data points to predict on in the evaluation phase (unless the test set is used)
 }
@@ -114,12 +114,13 @@ for i in range(sample_size):
     cross_analysis[int(label_index[i]), int(cluster_index[i])] += 1
 
 print("Clusters vs labels")
+for j in range(config['label_num']):
+    print("L{:6.0f}".format(j), end='')
+print("  <- Labels")
 for i in range(2**bottleneck_dimensions):
     for j in range(config['label_num']):
         print("{:7.0f}".format(cross_analysis[j,i]), end='')
-    print(" size {:8.0f}".format(cluster_sizes[i]))
-
-
+    print("  Cluster {:2.0f} size {:6.0f}".format(i, cluster_sizes[i]))
 
 # Generate images from the extreme points 
 # ----------------------
@@ -132,9 +133,3 @@ for cluster in range(2**bottleneck_dimensions):
     decoded = decoder_model.predict(input)[0]
     decoded = np.reshape(decoded, (28, 28))
     plt.imsave("out/decoded_{}.png".format(cluster), decoded)
-
-# TODO https://keras.io/api/utils/model_plotting_utils/#plot_model-function
-# Stats for distribution of classes in corners?
-
-# plt.imsave(filename, array)
-# PIL.Image.fromarray(A).save(filename)
