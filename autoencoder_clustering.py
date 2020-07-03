@@ -36,6 +36,7 @@ for ix, size in enumerate(config['layer_sizes']):
 x = keras.layers.Activation('sigmoid')(x) # to ensure bottleneck signal is 0-1
 
 bottleneck = x
+quantised_bottleneck = keras.layers.Lambda((lambda y: tf.math.floor(y*1.9999)))(x)
 
 decoder_input = keras.layers.Input(shape=(config['layer_sizes'][-1],), dtype='float32')
 dx = decoder_input
@@ -46,14 +47,18 @@ for ix, size in enumerate(reversed(config['layer_sizes'])):
 dx = keras.layers.Dense(config['inputs'], name="decode/denseFinal")(dx)
 decoder_model = keras.models.Model(inputs=[decoder_input], outputs=[dx])
 
-x = decoder_model(x)
-decoded = keras.layers.Lambda((lambda y: y), name='decoded')(x)
-bottleneck = keras.layers.Lambda((lambda y: y), name='bottleneck')(bottleneck)
+decoded = decoder_model(bottleneck)
+quantised_decoded = decoder_model(quantised_bottleneck)
 
-model = keras.models.Model(inputs=[inputs], outputs=[decoded, bottleneck])
+# Name the outputs
+decoded = keras.layers.Lambda((lambda y: y), name='decoded')(decoded)
+bottleneck = keras.layers.Lambda((lambda y: y), name='bottleneck')(bottleneck)
+quantised_decoded = keras.layers.Lambda((lambda y: y), name='quantised_decoded')(quantised_decoded)
+
+model = keras.models.Model(inputs=[inputs], outputs=[decoded, bottleneck, quantised_decoded])
 model.compile(
-    loss={'decoded': 'mse', 'bottleneck': bottleneck_loss},
-    loss_weights={'decoded': 1., 'bottleneck': .02},
+    loss={'decoded': 'mse', 'bottleneck': bottleneck_loss, 'quantised_decoded': 'mse'},
+    loss_weights={'decoded': 1., 'bottleneck': .02, 'quantised_decoded': .5},
     optimizer=keras.optimizers.Adadelta()
 )
 
@@ -72,7 +77,7 @@ x_train = np.reshape(x_train, (-1, 28*28))
 # ----------------------
 
 # The dummy target for the bottleneck loss is not used
-model.fit(x_train, [x_train, np.zeros((x_train.shape[0], 1))], batch_size=config['batch_size'], epochs=config['epochs'])
+model.fit(x_train, [x_train, np.zeros((x_train.shape[0], 1)), x_train], batch_size=config['batch_size'], epochs=config['epochs'])
 
 # Run a sample of the data through the model
 # ----------------------
